@@ -8,6 +8,7 @@ import errno
 import socket
 import ssl
 import sys
+import time
 
 import gunicorn.http as http
 import gunicorn.http.wsgi as wsgi
@@ -23,6 +24,7 @@ class AsyncWorker(base.Worker):
     def __init__(self, *args, **kwargs):
         super(AsyncWorker, self).__init__(*args, **kwargs)
         self.worker_connections = self.cfg.worker_connections
+        self.request_started = 0
 
     def timeout_ctx(self):
         raise NotImplementedError()
@@ -93,7 +95,7 @@ class AsyncWorker(base.Worker):
         try:
             self.cfg.pre_request(self, req)
             resp, environ = wsgi.create(req, sock, addr,
-                    listener_name, self.cfg)
+                                        listener_name, self.cfg)
             environ["wsgi.multithread"] = True
             self.nr += 1
             if self.alive and self.nr >= self.max_requests:
@@ -104,7 +106,13 @@ class AsyncWorker(base.Worker):
             if not self.cfg.keepalive:
                 resp.force_close()
 
+            # log request start time in the Worker object
+            self.request_started = time.time()
+
             respiter = self.wsgi(environ, resp.start_response)
+
+            self.log.info("########## TOOK %d seconds" % (time.time() - self.request_started))
+
             if self.is_already_handled(respiter):
                 return False
             try:

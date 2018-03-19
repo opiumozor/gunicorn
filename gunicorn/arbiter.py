@@ -492,6 +492,11 @@ class Arbiter(object):
         workers = list(self.WORKERS.items())
         for (pid, worker) in workers:
             try:
+                self.log.info("-------------")
+                self.log.info(worker.request_started)  # this is always = 0 for some reason
+
+                # worker ex: gunicorn.workers.ggevent.GeventWorker object at 0x10a3dfc90
+
                 if time.time() - worker.tmp.last_update() <= self.timeout:
                     continue
             except (OSError, ValueError):
