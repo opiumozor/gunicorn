@@ -647,7 +647,7 @@ class WorkerThreads(Setting):
         If it is not defined, the default is ``1``.
 
         This setting only affects the Gthread worker type.
-        
+
         .. note::
            If you try to use the ``sync`` worker type and set the ``threads``
            setting to more than 1, the ``gthread`` worker type will be used
@@ -741,6 +741,22 @@ class GracefulTimeout(Setting):
         After receiving a restart signal, workers have this much time to finish
         serving requests. Workers still alive after the timeout (starting from
         the receipt of the restart signal) are force killed.
+        """
+
+
+class RequestTimeout(Setting):
+    name = "request_timeout"
+    section = "Worker Processes"
+    cli = ["--request-timeout"]
+    meta = "INT"
+    validator = validate_pos_int
+    type = int
+    default = 0
+    desc = """\
+        Workers are killed and restarted if the request running in it takes more
+        than this many seconds.
+
+        By default Gunicorn will not
         """
 
 

@@ -8,7 +8,7 @@ import errno
 import socket
 import ssl
 import sys
-import time
+import signal
 
 import gunicorn.http as http
 import gunicorn.http.wsgi as wsgi
@@ -24,7 +24,6 @@ class AsyncWorker(base.Worker):
     def __init__(self, *args, **kwargs):
         super(AsyncWorker, self).__init__(*args, **kwargs)
         self.worker_connections = self.cfg.worker_connections
-        self.request_started = 0
 
     def timeout_ctx(self):
         raise NotImplementedError()
@@ -106,12 +105,26 @@ class AsyncWorker(base.Worker):
             if not self.cfg.keepalive:
                 resp.force_close()
 
-            # log request start time in the Worker object
-            self.request_started = time.time()
+            class TimeoutError(Exception):
+                pass
 
-            respiter = self.wsgi(environ, resp.start_response)
+            def request_timeout_handler(signum, frame):
+                raise TimeoutError("toto")
 
-            self.log.info("########## TOOK %d seconds" % (time.time() - self.request_started))
+            # request timeout
+            signal.signal(signal.SIGALRM, request_timeout_handler)
+            signal.alarm(self.cfg.request_timeout)
+
+            try:
+                respiter = self.wsgi(environ, resp.start_response)
+            except TimeoutError as exc:
+                # it never catches the exception :(
+                self.log.info("Oops request timed out")
+                resp.force_close()
+                self.alive = False
+            finally:
+                # seeems like it doesn't go in here too :/
+                signal.alarm(0)
 
             if self.is_already_handled(respiter):
                 return False
