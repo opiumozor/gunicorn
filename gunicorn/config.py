@@ -756,7 +756,7 @@ class RequestTimeout(Setting):
     meta = "INT"
     validator = validate_pos_int
     type = int
-    default = 0
+    default = 120
     desc = """\
         Worker is killed and restarted if the request running in it takes more
         than this many seconds.
